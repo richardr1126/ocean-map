@@ -8,12 +8,12 @@ A Next.js application for visualizing geographical ocean data.
 
 2. Build and run the application using Docker Compose:
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 3. To stop the application:
 ```bash
-docker-compose down
+docker compose down
 ```
 
 The application will be available at `http://localhost:3005`

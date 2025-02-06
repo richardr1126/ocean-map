@@ -6,7 +6,7 @@ export default function Home() {
           Ocean Geographical Map
         </h1>
         <p className="text-xl md:text-2xl text-secondary mb-8">
-          View the world's oceans in a new way
+          {"View the world's oceans in a new way"}
         </p>
         <div className="text-foreground text-lg mb-8">
           Coming in the next 3 weeks
