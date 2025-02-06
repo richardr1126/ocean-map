@@ -4,8 +4,8 @@ A Next.js application for visualizing geographical ocean data.
 
 ## Prerequisites
 
-- Node.js (Latest LTS version recommended)
-- npm or yarn
+- Node.js (Latest LTS version recommended: use [nvm](https://github.com/nvm-sh/nvm))
+- npm (Latest LTS version recommended: comes with Node.js)
 
 ## Setup
 
@@ -18,15 +18,11 @@ cd OceanGeographicalMap
 2. Install dependencies:
 ```bash
 npm install
-# or
-yarn install
 ```
 
 3. Start the development server:
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
 The application will be available at `http://localhost:3005`
