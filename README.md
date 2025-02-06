@@ -2,6 +2,22 @@
 
 A Next.js application for visualizing geographical ocean data.
 
+## Docker Quick setup
+
+1. Make sure you have Docker and Docker Compose installed on your system.
+
+2. Build and run the application using Docker Compose:
+```bash
+docker-compose up --build
+```
+
+3. To stop the application:
+```bash
+docker-compose down
+```
+
+The application will be available at `http://localhost:3005`
+
 ## Prerequisites
 
 - Node.js (Latest LTS version recommended)
@@ -11,7 +27,7 @@ A Next.js application for visualizing geographical ocean data.
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/OceanGeographicalMap.git
+git clone https://github.com/daniel-ethridge/OceanGeographicalMap.git
 cd OceanGeographicalMap
 ```
 
@@ -28,6 +44,8 @@ npm run dev
 # or
 yarn dev
 ```
+
+The application will be available at `http://localhost:3005`
 
 ## Technologies Used
 

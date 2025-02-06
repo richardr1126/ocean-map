@@ -9,7 +9,7 @@ export default function Home() {
           View the world's oceans in a new way
         </p>
         <div className="text-foreground text-lg mb-8">
-          Coming Soon
+          Coming in the next 3 weeks
         </div>
         
       </main>
