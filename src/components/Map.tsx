@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import microplasticsData from '@/data/nasa_microplastics.json'; 
+import microplasticsData from '@/data/nasa_microplastics.json';
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -13,7 +13,7 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const formatMicroplasticsData = (properties: any) => {
+const formatMicroplasticsData = (properties: GeoJSON.GeoJsonProperties) => {
   if (!properties) return '';
   
   const relevantData = {
@@ -41,6 +41,86 @@ export default function Map() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [isStreetView, setIsStreetView] = useState(true);
 
+  const addDataLayers = useCallback(() => {
+    if (!mapRef.current) return;
+
+    // Add the GeoJSON as a source
+    if (!mapRef.current.getSource('microplastics')) {
+      mapRef.current.addSource('microplastics', {
+        type: 'geojson',
+        data: microplasticsData as GeoJSON.FeatureCollection
+      });
+    }
+
+    // Add a layer to visualize the points
+    if (!mapRef.current.getLayer('microplastics-points')) {
+      mapRef.current.addLayer({
+        id: 'microplastics-points',
+        type: 'circle',
+        source: 'microplastics',
+        paint: {
+          'circle-color': '#FF0000',
+          'circle-radius': 6,
+          'circle-opacity': 0.7
+        }
+      });
+
+      // Add click handler for popups
+      mapRef.current.on('click', 'microplastics-points', (e) => {
+        const feature = e.features?.[0] as GeoJSON.Feature | undefined;
+        if (!feature) return;
+
+        const coordinates = feature.geometry.type === 'Point' 
+          ? (feature.geometry.coordinates as [number, number])
+          : e.lngLat.toArray();
+
+        const properties = feature.properties;
+        
+        new mapboxgl.Popup()
+          .setLngLat(coordinates)
+          .setHTML(`
+            <div class="flex flex-col text-deep-water p-2 max-w-sm">
+              <div class="mb-3">
+                <div class="mb-1">
+                  <span class="font-semibold">Latitude:</span> ${coordinates[1].toFixed(4)}°
+                </div>
+                <div class="mb-1">
+                  <span class="font-semibold">Longitude:</span> ${coordinates[0].toFixed(4)}°
+                </div>
+              </div>
+              <div class="flex flex-col space-y-0.5">
+                ${formatMicroplasticsData(properties)}
+              </div>
+              ${properties?.DOI ? `
+                <button class="mt-2 text-sm">
+                  <a href="${properties.DOI}" 
+                     target="_blank" 
+                     rel="noopener noreferrer"
+                     class="text-blue-600 hover:text-blue-800 hover:underline">
+                    View Research Paper
+                  </a>
+                </button>
+              ` : ''}
+            </div>
+          `)
+          .addTo(mapRef.current!);
+      });
+
+      // Add hover handlers
+      mapRef.current.on('mouseenter', 'microplastics-points', () => {
+        if (mapRef.current) {
+          mapRef.current.getCanvas().style.cursor = 'pointer';
+        }
+      });
+
+      mapRef.current.on('mouseleave', 'microplastics-points', () => {
+        if (mapRef.current) {
+          mapRef.current.getCanvas().style.cursor = '';
+        }
+      });
+    }
+  }, []);
+
   const loadMap = useCallback(() => {
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -52,81 +132,11 @@ export default function Map() {
         zoom: 2
       });
 
-      // Add GeoJSON data after map loads
       mapRef.current.on('load', () => {
-        // Add the GeoJSON as a source
-        mapRef.current!.addSource('microplastics', {
-          type: 'geojson',
-          data: microplasticsData as any
-        });
-
-        // Add a layer to visualize the points
-        mapRef.current!.addLayer({
-          id: 'microplastics-points',
-          type: 'circle',
-          source: 'microplastics',
-          paint: {
-            'circle-color': '#FF0000',
-            'circle-radius': 6,
-            'circle-opacity': 0.7
-          }
-        });
-
-        // Add popup on click
-        mapRef.current!.on('click', 'microplastics-points', (e) => {
-          if (!e.features || !e.features[0]) return;
-
-          const coordinates = e.features[0].geometry.type === 'Point' 
-            ? (e.features[0].geometry.coordinates as [number, number])
-            : e.lngLat.toArray();
-
-          const properties = e.features[0].properties;
-          
-          new mapboxgl.Popup()
-            .setLngLat(coordinates)
-            .setHTML(`
-              <div class="flex flex-col text-deep-water p-2 max-w-sm">
-                <div class="mb-3">
-                  <div class="mb-1">
-                    <span class="font-semibold">Latitude:</span> ${coordinates[1].toFixed(4)}°
-                  </div>
-                  <div class="mb-1">
-                    <span class="font-semibold">Longitude:</span> ${coordinates[0].toFixed(4)}°
-                  </div>
-                </div>
-                <div class="flex flex-col space-y-0.5">
-                  ${formatMicroplasticsData(properties)}
-                </div>
-                ${properties?.DOI ? `
-                  <button class="mt-2 text-sm">
-                    <a href="${properties.DOI}" 
-                       target="_blank" 
-                       rel="noopener noreferrer"
-                       class="text-blue-600 hover:text-blue-800 hover:underline">
-                      View Research Paper
-                    </a>
-                  </button>
-                ` : ''}
-              </div>
-            `)
-            .addTo(mapRef.current!);
-        });
-
-        // Change cursor on hover
-        mapRef.current!.on('mouseenter', 'microplastics-points', () => {
-          if (mapRef.current) {
-            mapRef.current.getCanvas().style.cursor = 'pointer';
-          }
-        });
-
-        mapRef.current!.on('mouseleave', 'microplastics-points', () => {
-          if (mapRef.current) {
-            mapRef.current.getCanvas().style.cursor = '';
-          }
-        });
+        addDataLayers();
       });
     }
-  }, []);
+  }, [addDataLayers]);
 
   const toggleMapStyle = useCallback(() => {
     const satellite = 'mapbox://styles/mapbox/satellite-v9';
@@ -135,9 +145,13 @@ export default function Map() {
     if (mapRef.current) {
       mapRef.current.setStyle(isStreetView ? satellite : streets);
       setIsStreetView(!isStreetView);
+      
+      // Re-add data layers after style change
+      mapRef.current.once('style.load', () => {
+        addDataLayers();
+      });
     }
-  }, [isStreetView]);
-  // useCallback dependencies are so that the function "re-renders" when the state changes
+  }, [isStreetView, addDataLayers]);
 
   useEffect(() => {
     loadMap();
