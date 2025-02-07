@@ -15,6 +15,12 @@ git clone https://github.com/daniel-ethridge/OceanGeographicalMap.git
 cd OceanGeographicalMap
 ```
 
+2. Copy env template
+```bash
+cp template.env .env.local
+```
+> Add your own Mapbox API key to the `.env.local` file
+
 2. Install dependencies:
 ```bash
 npm install

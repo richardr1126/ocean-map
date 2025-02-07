@@ -31,3 +31,8 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.mapboxgl-control-container {
+  position: absolute;
+  z-index: 1;
+}
