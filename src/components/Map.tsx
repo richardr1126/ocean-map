@@ -81,6 +81,19 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
         type: 'geojson',
         data: microplasticsData as GeoJSON.FeatureCollection
       });
+
+      // Initialize data point count when source is first added
+      const filteredData = (microplasticsData as any).features.filter((feature: any) => {
+        const date = new Date(feature.properties.Date);
+        const year = date.getFullYear();
+        
+        if (yearFilter.type === 'single') {
+          return year === yearFilter.minYear;
+        } else {
+          return year >= yearFilter.minYear && year <= yearFilter.maxYear;
+        }
+      });
+      setDataPointCount(filteredData.length);
     }
 
     // Add a layer to visualize the points
@@ -156,7 +169,7 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
         showMicroplastics ? 0.7 : 0
       );
     }
-  }, [showMicroplastics]);
+  }, [showMicroplastics, yearFilter]);
 
   const loadMap = useCallback(() => {
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
