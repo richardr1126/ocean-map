@@ -36,10 +36,41 @@ const formatMicroplasticsData = (properties: GeoJSON.GeoJsonProperties) => {
     .join('');
 };
 
-export default function Map() {
+interface MapProps {
+  showMicroplastics: boolean;
+  yearFilter: {
+    type: 'single' | 'range';
+    minYear: number;
+    maxYear: number;
+  };
+}
+
+export default function Map({ showMicroplastics, yearFilter }: MapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [isStreetView, setIsStreetView] = useState(true);
+  const [dataPointCount, setDataPointCount] = useState(0);
+
+  const filterDataByYear = useCallback(() => {
+    if (!mapRef.current || !mapRef.current.getSource('microplastics')) return;
+
+    const filteredData = {
+      type: 'FeatureCollection',
+      features: (microplasticsData as any).features.filter((feature: any) => {
+        const date = new Date(feature.properties.Date);
+        const year = date.getFullYear();
+        
+        if (yearFilter.type === 'single') {
+          return year === yearFilter.minYear;
+        } else {
+          return year >= yearFilter.minYear && year <= yearFilter.maxYear;
+        }
+      })
+    };
+
+    setDataPointCount(filteredData.features.length);
+    (mapRef.current.getSource('microplastics') as mapboxgl.GeoJSONSource).setData(filteredData);
+  }, [yearFilter]);
 
   const addDataLayers = useCallback(() => {
     if (!mapRef.current) return;
@@ -61,7 +92,7 @@ export default function Map() {
         paint: {
           'circle-color': '#FF0000',
           'circle-radius': 6,
-          'circle-opacity': 0.7
+          'circle-opacity': showMicroplastics ? 0.7 : 0
         }
       });
 
@@ -118,8 +149,14 @@ export default function Map() {
           mapRef.current.getCanvas().style.cursor = '';
         }
       });
+    } else {
+      mapRef.current.setPaintProperty(
+        'microplastics-points',
+        'circle-opacity',
+        showMicroplastics ? 0.7 : 0
+      );
     }
-  }, []);
+  }, [showMicroplastics]);
 
   const loadMap = useCallback(() => {
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -161,10 +198,23 @@ export default function Map() {
     };
   }, [loadMap]);
 
+  // Add useEffect to handle year filter changes
+  useEffect(() => {
+    filterDataByYear();
+  }, [filterDataByYear]);
+
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="w-full h-full" />
       
+      {showMicroplastics && (
+        <div className="absolute top-4 right-4 bg-white bg-opacity-90 px-4 py-2 rounded-md shadow-md">
+          <p className="text-black font-medium">
+            Showing {dataPointCount} data points
+          </p>
+        </div>
+      )}
+
       <button
         onClick={toggleMapStyle}
         className="group absolute bottom-4 right-4 ml-auto bg-background p-2 rounded-md shadow-md hover:bg-deep-water transition-colors text-2xl"
