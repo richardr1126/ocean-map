@@ -135,9 +135,15 @@ export default function Map() {
         const feature = e.features?.[0];
         if (!feature) return;
 
-        const coordinates = feature.geometry.type === 'Point' 
-          ? (feature.geometry as any).coordinates.slice()
-          : e.lngLat.toArray();
+        const getCoordinates = (feature: GeoJSON.Feature): [number, number] => {
+          if (feature.geometry.type === 'Point') {
+            const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates;
+            return [lng, lat];
+          }
+          return [e.lngLat.lng, e.lngLat.lat];
+        };
+
+        const coordinates = getCoordinates(feature);
           
         const properties = feature.properties;
         const popupContent = layer.id === 'microplastics' 
@@ -186,8 +192,8 @@ export default function Map() {
     }
   }, [convertPolygonToPoint, getFilteredData]);
 
-  // Initialize map only once
-  useEffect(() => {
+  const loadMap = useCallback(() => {
+    // Only initialize map if it hasn't been initialized yet
     if (!mapRef.current && mapContainerRef.current) {
       mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -202,11 +208,12 @@ export default function Map() {
         layers.forEach(updateLayer);
       });
     }
+  }, [layers, updateLayer]);
 
-    return () => {
-      mapRef.current?.remove();
-    };
-  }, []); // Empty dependency array since we only want to initialize once
+  // Initialize map only once
+  useEffect(() => {
+    loadMap();
+  }, [loadMap]); // Empty dependency array since we only want to initialize once
 
   // Update layers when they change
   useEffect(() => {
