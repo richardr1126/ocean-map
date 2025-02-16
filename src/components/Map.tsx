@@ -90,20 +90,24 @@ export default function Map() {
       features: data.features.map(convertPolygonToPoint)
     } as GeoJSON.FeatureCollection;
 
+    // Remove existing layer if it exists
+    if (layersRef.current.has(layerId) && map.getLayer(layerId)) {
+      map.removeLayer(layerId);
+    }
+
     // Update existing source if it exists
     if (map.getSource(layer.id)) {
       (map.getSource(layer.id) as mapboxgl.GeoJSONSource).setData(pointData);
-      
-      // Update layer visibility
-      map.setPaintProperty(layerId, 'circle-opacity', layer.visible ? 0.8 : 0);
-      map.setPaintProperty(layerId, 'circle-stroke-opacity', layer.visible ? 1 : 0);
     } else {
-      // Add new source and layer if they don't exist
+      // Add new source if it doesn't exist
       map.addSource(layer.id, {
         type: 'geojson',
         data: pointData
       });
+    }
 
+    // Add layer if it's meant to be visible
+    if (layer.visible) {
       map.addLayer({
         id: layerId,
         type: 'circle',
@@ -117,70 +121,68 @@ export default function Map() {
             8, layer.id === 'nasa' ? 8 : 6
           ],
           'circle-color': layer.color,
-          'circle-opacity': layer.visible ? 0.8 : 0,
+          'circle-opacity': 0.8,
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff',
-          'circle-stroke-opacity': layer.visible ? 1 : 0
+          'circle-stroke-opacity': 1
         }
       });
 
-      // Add event listeners only once when layer is created
-      if (!layersRef.current.has(layerId)) {
-        layersRef.current.add(layerId);
-        
-        map.on('click', layerId, (e) => {
-          const feature = e.features?.[0];
-          if (!feature) return;
+      layersRef.current.add(layerId);
 
-          const coordinates = feature.geometry.type === 'Point' 
-            ? (feature.geometry as any).coordinates.slice()
-            : e.lngLat.toArray();
-            
-          const properties = feature.properties;
-          const popupContent = layer.id === 'microplastics' 
-            ? formatMicroplasticsPopup(properties)
-            : layer.id === 'nasa'
-            ? formatNasaPopup(properties)
-            : formatNtuaPopup(properties);
+      // Add event listeners
+      map.on('click', layerId, (e) => {
+        const feature = e.features?.[0];
+        if (!feature) return;
 
-          new mapboxgl.Popup()
-            .setLngLat(coordinates)
-            .setHTML(`
-              <div class="flex flex-col text-deep-water p-2 max-w-sm">
-                <div class="mb-3">
-                  <div class="mb-1">
-                    <span class="font-semibold">Latitude:</span> ${coordinates[1].toFixed(4)}°
-                  </div>
-                  <div class="mb-1">
-                    <span class="font-semibold">Longitude:</span> ${coordinates[0].toFixed(4)}°
-                  </div>
+        const coordinates = feature.geometry.type === 'Point' 
+          ? (feature.geometry as any).coordinates.slice()
+          : e.lngLat.toArray();
+          
+        const properties = feature.properties;
+        const popupContent = layer.id === 'microplastics' 
+          ? formatMicroplasticsPopup(properties)
+          : layer.id === 'nasa'
+          ? formatNasaPopup(properties)
+          : formatNtuaPopup(properties);
+
+        new mapboxgl.Popup()
+          .setLngLat(coordinates)
+          .setHTML(`
+            <div class="flex flex-col text-deep-water p-2 max-w-sm">
+              <div class="mb-3">
+                <div class="mb-1">
+                  <span class="font-semibold">Latitude:</span> ${coordinates[1].toFixed(4)}°
                 </div>
-                <div class="flex flex-col space-y-0.5">
-                  ${popupContent}
+                <div class="mb-1">
+                  <span class="font-semibold">Longitude:</span> ${coordinates[0].toFixed(4)}°
                 </div>
-                ${properties?.DOI ? `
-                  <button class="mt-2 text-sm">
-                    <a href="${properties.DOI}" 
-                       target="_blank" 
-                       rel="noopener noreferrer"
-                       class="text-blue-600 hover:text-blue-800 hover:underline">
-                      View Research Paper
-                    </a>
-                  </button>
-                ` : ''}
               </div>
-            `)
-            .addTo(map);
-        });
+              <div class="flex flex-col space-y-0.5">
+                ${popupContent}
+              </div>
+              ${properties?.DOI ? `
+                <button class="mt-2 text-sm">
+                  <a href="${properties.DOI}" 
+                     target="_blank" 
+                     rel="noopener noreferrer"
+                     class="text-blue-600 hover:text-blue-800 hover:underline">
+                    View Research Paper
+                  </a>
+                </button>
+              ` : ''}
+            </div>
+          `)
+          .addTo(map);
+      });
 
-        map.on('mouseenter', layerId, () => {
-          map.getCanvas().style.cursor = 'pointer';
-        });
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
 
-        map.on('mouseleave', layerId, () => {
-          map.getCanvas().style.cursor = '';
-        });
-      }
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = '';
+      });
     }
   }, [convertPolygonToPoint, getFilteredData]);
 
@@ -234,8 +236,8 @@ export default function Map() {
       
       <div className="absolute top-16 right-4 flex flex-col gap-2">
         {layers.map(layer => layer.visible && (
-          <div key={layer.id} className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-md shadow-md">
-            <p className="font-medium text-white flex items-center gap-2">
+          <div key={layer.id} className="bg-white/30 dark:bg-black/40 backdrop-blur-md px-4 py-2 rounded-md shadow-md">
+            <p className="font-medium text-foreground flex items-center gap-2">
               <span className="w-3 h-3 inline-block rounded-full" style={{ backgroundColor: layer.color }}></span>
               {dataPointCount[layer.id]} points
             </p>
