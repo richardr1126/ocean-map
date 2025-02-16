@@ -2,29 +2,29 @@ import { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
 
 export default function Sidebar() {
-  const { showMicroplastics, setShowMicroplastics, yearFilter, setYearFilter } = useData();
+  const { layers, toggleLayer, yearFilter, setYearFilter } = useData();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [filterType, setFilterType] = useState<'single' | 'range'>(yearFilter.type);
-  const [singleYear, setSingleYear] = useState<number>(yearFilter.minYear);
-  const [minYear, setMinYear] = useState<number>(yearFilter.minYear);
-  const [maxYear, setMaxYear] = useState<number>(yearFilter.maxYear);
 
-  const handleApply = () => {
+  // Update filter type and apply changes immediately
+  const handleFilterTypeChange = (type: 'single' | 'range') => {
     setYearFilter({
-      type: filterType,
-      minYear: filterType === 'single' ? singleYear : minYear,
-      maxYear: filterType === 'single' ? singleYear : maxYear
+      type,
+      minYear: yearFilter.minYear,
+      maxYear: yearFilter.maxYear
     });
   };
 
+  // Only show year filter if microplastics layer is visible
+  const showYearFilter = layers.some(layer => layer.visible && layer.id === 'microplastics');
+
   return (
-    <div className={`mt-16 m-5 fixed w-fit text-white text-sm sm:text-md bg-black/40 backdrop-blur-md rounded-lg shadow-md z-50 transition-all ease-in-out ${isCollapsed ? 'p-1' : 'p-4'}`}>
+    <div className={`mt-16 m-5 fixed w-fit text-foreground font-medium text-sm sm:text-md bg-white/40 dark:bg-black/40 backdrop-blur-md rounded-lg shadow-md z-50 transition-all ease-in-out ${isCollapsed ? 'p-1' : 'p-4'}`}>
       <div className={`flex flex-row justify-between items-center ${isCollapsed ? 'm-0 mx-1' : 'mb-2'}`}>
-        <svg 
+        <svg
           className={`w-5 h-5 ${isCollapsed ? 'text-sm' : 'text-md'}`}
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
           strokeWidth="2"
         >
           <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
@@ -35,13 +35,13 @@ export default function Sidebar() {
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <svg
-        className={`w-4 h-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
+            className={`w-4 h-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
           >
-        <path d="M15 19l-7-7 7-7" />
+            <path d="M15 19l-7-7 7-7" />
           </svg>
         </button>
       </div>
@@ -49,92 +49,93 @@ export default function Sidebar() {
       {!isCollapsed && (
         <>
           <div className="flex flex-col gap-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="showMicroplastics"
-                checked={showMicroplastics}
-                onChange={(e) => setShowMicroplastics(e.target.checked)}
-                className="w-4 h-4 text-primary"
-              />
-              <label htmlFor="showMicroplastics">Show Microplastics Data</label>
+            <div className="flex flex-col gap-2">
+              {layers.map(layer => (
+                <div key={layer.id} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={layer.id}
+                    checked={layer.visible}
+                    onChange={() => toggleLayer(layer.id)}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <label htmlFor={layer.id} className="flex items-center gap-2">
+                    <span className="w-3 h-3 inline-block rounded-full" style={{ backgroundColor: layer.color }}></span>
+                    {layer.name}
+                  </label>
+                </div>
+              ))}
             </div>
 
-            {showMicroplastics && (
-              <>
-                <div className="flex flex-col">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="singleYear"
-                      name="filterType"
-                      checked={filterType === 'single'}
-                      onChange={() => setFilterType('single')}
-                      className="text-primary"
-                    />
-                    <label htmlFor="singleYear">Single Year</label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="yearRange"
-                      name="filterType"
-                      checked={filterType === 'range'}
-                      onChange={() => setFilterType('range')}
-                      className="text-primary"
-                    />
-                    <label htmlFor="yearRange">Year Range</label>
-                  </div>
+            {showYearFilter && (
+              <div className="flex flex-col gap-2">
+                <div className="flex w-full rounded-lg overflow-hidden bg-white/30 dark:bg-black/20 font-semibold">
+                  <button
+                    className={`flex-1 p-0.5 transition-colors ${yearFilter.type === 'range' ? 'bg-white/30 dark:bg-black/20' : 'hover:bg-white/20 dark:hover:bg-black/10'}`}
+                    onClick={() => handleFilterTypeChange('range')}
+                  >
+                    Range
+                  </button>
+                  <button
+                    className={`flex-1 p-0.5 transition-colors ${yearFilter.type === 'single' ? 'bg-white/30 dark:bg-black/20' : 'hover:bg-white/20 dark:hover:bg-black/10'}`}
+                    onClick={() => handleFilterTypeChange('single')}
+                  >
+                    Year
+                  </button>
                 </div>
 
-                {filterType === 'single' ? (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="year">Year</label>
+                {yearFilter.type === 'single' ? (
+                  <div className="flex flex-col gap-1 self-end">
+                    <label htmlFor="year" className='hidden'>Year</label>
                     <input
                       type="number"
                       id="year"
-                      value={singleYear}
-                      onChange={(e) => setSingleYear(Number(e.target.value))}
-                      className="w-full px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
+                      value={yearFilter.minYear}
+                      onChange={(e) => setYearFilter({
+                        type: 'single',
+                        minYear: Number(e.target.value),
+                        maxYear: Number(e.target.value)
+                      })}
+                      className="w-20 px-2 py-0.5 rounded-md border-0 ring-primary bg-white/60 dark:bg-black/20"
                     />
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="flex flex-row justify-between gap-1">
                     <div className="flex flex-col gap-1">
-                      <label htmlFor="minYear">Min Year</label>
+                      <label htmlFor="minYear" className='hidden'>Min</label>
                       <input
                         type="number"
                         id="minYear"
-                        value={minYear}
-                        onChange={(e) => setMinYear(Number(e.target.value))}
-                        className="w-full px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
+                        value={yearFilter.minYear}
+                        onChange={(e) => setYearFilter({
+                          type: 'range',
+                          minYear: Number(e.target.value),
+                          maxYear: yearFilter.maxYear
+                        })}
+                        className="w-20 px-2 py-0.5 rounded-md bg-white/60 dark:bg-black/20 border-0 ring-primary"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label htmlFor="maxYear">Max Year</label>
+                      <label htmlFor="maxYear" className='hidden'>Max</label>
                       <input
                         type="number"
                         id="maxYear"
-                        value={maxYear}
-                        onChange={(e) => setMaxYear(Number(e.target.value))}
-                        className="w-full px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
+                        value={yearFilter.maxYear}
+                        onChange={(e) => setYearFilter({
+                          type: 'range',
+                          minYear: yearFilter.minYear,
+                          maxYear: Number(e.target.value)
+                        })}
+                        className="w-20 px-2 py-0.5 rounded-md bg-white/60 dark:bg-black/20 border-0 ring-primary"
                       />
                     </div>
                   </div>
                 )}
-
-                <button
-                  onClick={handleApply}
-                  className="flex w-fit bg-black/20 py-1 px-2 rounded-md transform transition-transform hover:scale-[1.07] self-end"
-                >
-                  Apply
-                </button>
-              </>
+              </div>
             )}
           </div>
         </>
       )}
     </div>
   );
-};
+}
