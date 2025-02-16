@@ -13,7 +13,7 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const formatMicroplasticsData = (properties: GeoJSON.GeoJsonProperties) => {
+const formatMicroplasticsPopup = (properties: GeoJSON.GeoJsonProperties) => {
   if (!properties) return '';
   
   const relevantData = {
@@ -36,104 +36,147 @@ const formatMicroplasticsData = (properties: GeoJSON.GeoJsonProperties) => {
     .join('');
 };
 
+const formatNasaPopup = (properties: GeoJSON.GeoJsonProperties) => {
+  if (!properties) return '';
+  
+  return `
+    <p class="flex flex-wrap mb-1 break-all space-x-1">
+      <span class="font-semibold">Detection:</span> Floating Marine Debris
+    </p>
+  `;
+};
+
 export default function Map() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const layersRef = useRef<Set<string>>(new Set());
   const [isStreetView, setIsStreetView] = useState(true);
-  const { showMicroplastics, getFilteredMicroplasticsData, dataPointCount } = useData();
+  const { layers, getFilteredData, dataPointCount } = useData();
+  
+  const convertPolygonToPoint = useCallback((feature: GeoJSON.Feature) => {
+    if (feature.geometry.type === 'Polygon') {
+      const coordinates = feature.geometry.coordinates[0][0];
+      return {
+        ...feature,
+        geometry: {
+          type: 'Point',
+          coordinates: coordinates
+        }
+      };
+    }
+    return feature;
+  }, []);
 
-  const addDataLayers = useCallback(() => {
+  const updateLayer = useCallback((layer: { id: string, color: string, visible: boolean }) => {
     if (!mapRef.current) return;
 
-    // Add the GeoJSON as a source
-    if (!mapRef.current.getSource('microplastics')) {
-      mapRef.current.addSource('microplastics', {
+    const layerId = `${layer.id}-points`;
+    const map = mapRef.current;
+    const data = getFilteredData(layer.id);
+
+    // Convert polygon features to points
+    const pointData = {
+      type: 'FeatureCollection',
+      features: data.features.map(convertPolygonToPoint)
+    } as GeoJSON.FeatureCollection;
+
+    // Update existing source if it exists
+    if (map.getSource(layer.id)) {
+      (map.getSource(layer.id) as mapboxgl.GeoJSONSource).setData(pointData);
+      
+      // Update layer visibility
+      map.setPaintProperty(layerId, 'circle-opacity', layer.visible ? 0.8 : 0);
+      map.setPaintProperty(layerId, 'circle-stroke-opacity', layer.visible ? 1 : 0);
+    } else {
+      // Add new source and layer if they don't exist
+      map.addSource(layer.id, {
         type: 'geojson',
-        data: getFilteredMicroplasticsData()
+        data: pointData
       });
-    } else {
-      (mapRef.current.getSource('microplastics') as mapboxgl.GeoJSONSource).setData(getFilteredMicroplasticsData());
-    }
 
-    // Add a layer to visualize the points
-    if (!mapRef.current.getLayer('microplastics-points')) {
-      mapRef.current.addLayer({
-        id: 'microplastics-points',
+      map.addLayer({
+        id: layerId,
         type: 'circle',
-        source: 'microplastics',
+        source: layer.id,
         paint: {
-          'circle-color': '#FF0000',
-          'circle-radius': 6,
-          'circle-opacity': showMicroplastics ? 0.7 : 0
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            0, layer.id === 'nasa' ? 4 : 3,
+            8, layer.id === 'nasa' ? 8 : 6
+          ],
+          'circle-color': layer.color,
+          'circle-opacity': layer.visible ? 0.8 : 0,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-opacity': layer.visible ? 1 : 0
         }
       });
 
-      // Add click handler for popups
-      mapRef.current.on('click', 'microplastics-points', (e) => {
-        const feature = e.features?.[0] as GeoJSON.Feature | undefined;
-        if (!feature) return;
-
-        const coordinates = feature.geometry.type === 'Point' 
-          ? (feature.geometry.coordinates as [number, number])
-          : e.lngLat.toArray();
-
-        const properties = feature.properties;
+      // Add event listeners only once when layer is created
+      if (!layersRef.current.has(layerId)) {
+        layersRef.current.add(layerId);
         
-        new mapboxgl.Popup()
-          .setLngLat(coordinates)
-          .setHTML(`
-            <div class="flex flex-col text-deep-water p-2 max-w-sm">
-              <div class="mb-3">
-                <div class="mb-1">
-                  <span class="font-semibold">Latitude:</span> ${coordinates[1].toFixed(4)}°
-                </div>
-                <div class="mb-1">
-                  <span class="font-semibold">Longitude:</span> ${coordinates[0].toFixed(4)}°
-                </div>
-              </div>
-              <div class="flex flex-col space-y-0.5">
-                ${formatMicroplasticsData(properties)}
-              </div>
-              ${properties?.DOI ? `
-                <button class="mt-2 text-sm">
-                  <a href="${properties.DOI}" 
-                     target="_blank" 
-                     rel="noopener noreferrer"
-                     class="text-blue-600 hover:text-blue-800 hover:underline">
-                    View Research Paper
-                  </a>
-                </button>
-              ` : ''}
-            </div>
-          `)
-          .addTo(mapRef.current!);
-      });
+        map.on('click', layerId, (e) => {
+          const feature = e.features?.[0];
+          if (!feature) return;
 
-      // Add hover handlers
-      mapRef.current.on('mouseenter', 'microplastics-points', () => {
-        if (mapRef.current) {
-          mapRef.current.getCanvas().style.cursor = 'pointer';
-        }
-      });
+          const coordinates = feature.geometry.type === 'Point' 
+            ? (feature.geometry as any).coordinates.slice()
+            : e.lngLat.toArray();
+            
+          const properties = feature.properties;
+          const popupContent = layer.id === 'microplastics' 
+            ? formatMicroplasticsPopup(properties)
+            : formatNasaPopup(properties);
 
-      mapRef.current.on('mouseleave', 'microplastics-points', () => {
-        if (mapRef.current) {
-          mapRef.current.getCanvas().style.cursor = '';
-        }
-      });
-    } else {
-      mapRef.current.setPaintProperty(
-        'microplastics-points',
-        'circle-opacity',
-        showMicroplastics ? 0.7 : 0
-      );
+          new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(`
+              <div class="flex flex-col text-deep-water p-2 max-w-sm">
+                <div class="mb-3">
+                  <div class="mb-1">
+                    <span class="font-semibold">Latitude:</span> ${coordinates[1].toFixed(4)}°
+                  </div>
+                  <div class="mb-1">
+                    <span class="font-semibold">Longitude:</span> ${coordinates[0].toFixed(4)}°
+                  </div>
+                </div>
+                <div class="flex flex-col space-y-0.5">
+                  ${popupContent}
+                </div>
+                ${properties?.DOI ? `
+                  <button class="mt-2 text-sm">
+                    <a href="${properties.DOI}" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       class="text-blue-600 hover:text-blue-800 hover:underline">
+                      View Research Paper
+                    </a>
+                  </button>
+                ` : ''}
+              </div>
+            `)
+            .addTo(map);
+        });
+
+        map.on('mouseenter', layerId, () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
+
+        map.on('mouseleave', layerId, () => {
+          map.getCanvas().style.cursor = '';
+        });
+      }
     }
-  }, [showMicroplastics, getFilteredMicroplasticsData]);
+  }, [convertPolygonToPoint, getFilteredData]);
 
-  const loadMap = useCallback(() => {
-    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  // Initialize map only once
+  useEffect(() => {
+    if (!mapRef.current && mapContainerRef.current) {
+      mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-    if (mapContainerRef.current) {
       mapRef.current = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: 'mapbox://styles/mapbox/streets-v12',
@@ -142,10 +185,21 @@ export default function Map() {
       });
 
       mapRef.current.on('load', () => {
-        addDataLayers();
+        layers.forEach(updateLayer);
       });
     }
-  }, [addDataLayers]);
+
+    return () => {
+      mapRef.current?.remove();
+    };
+  }, []); // Empty dependency array since we only want to initialize once
+
+  // Update layers when they change
+  useEffect(() => {
+    if (mapRef.current?.loaded()) {
+      layers.forEach(updateLayer);
+    }
+  }, [layers, updateLayer]);
 
   const toggleMapStyle = useCallback(() => {
     const satellite = 'mapbox://styles/mapbox/satellite-v9';
@@ -157,36 +211,25 @@ export default function Map() {
       
       // Re-add data layers after style change
       mapRef.current.once('style.load', () => {
-        addDataLayers();
+        layers.forEach(updateLayer);
       });
     }
-  }, [isStreetView, addDataLayers]);
-
-  useEffect(() => {
-    loadMap();
-
-    return () => {
-      mapRef.current?.remove(); // Cleanup
-    };
-  }, [loadMap]);
-
-  useEffect(() => {
-    if (mapRef.current?.loaded()) {
-      addDataLayers();
-    }
-  }, [showMicroplastics, addDataLayers]);
+  }, [isStreetView, layers, updateLayer]);
 
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="w-full h-full" />
       
-      {showMicroplastics && (
-        <div className="absolute top-16 right-4 bg-black/40 backdrop-blur-md px-4 py-2 rounded-md shadow-md">
-          <p className="font-medium text-white">
-            Showing {dataPointCount} data points
-          </p>
-        </div>
-      )}
+      <div className="absolute top-16 right-4 flex flex-col gap-2">
+        {layers.map(layer => layer.visible && (
+          <div key={layer.id} className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-md shadow-md">
+            <p className="font-medium text-white flex items-center gap-2">
+              <span className="w-3 h-3 inline-block rounded-full" style={{ backgroundColor: layer.color }}></span>
+              {dataPointCount[layer.id]} points
+            </p>
+          </div>
+        ))}
+      </div>
 
       <button
         onClick={toggleMapStyle}
