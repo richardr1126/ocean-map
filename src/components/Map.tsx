@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import microplasticsData from '@/data/nasa_microplastics.json';
+import { useData } from '@/contexts/DataContext';
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -40,6 +40,7 @@ export default function Map() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [isStreetView, setIsStreetView] = useState(true);
+  const { showMicroplastics, getFilteredMicroplasticsData, dataPointCount } = useData();
 
   const addDataLayers = useCallback(() => {
     if (!mapRef.current) return;
@@ -48,8 +49,10 @@ export default function Map() {
     if (!mapRef.current.getSource('microplastics')) {
       mapRef.current.addSource('microplastics', {
         type: 'geojson',
-        data: microplasticsData as GeoJSON.FeatureCollection
+        data: getFilteredMicroplasticsData()
       });
+    } else {
+      (mapRef.current.getSource('microplastics') as mapboxgl.GeoJSONSource).setData(getFilteredMicroplasticsData());
     }
 
     // Add a layer to visualize the points
@@ -61,7 +64,7 @@ export default function Map() {
         paint: {
           'circle-color': '#FF0000',
           'circle-radius': 6,
-          'circle-opacity': 0.7
+          'circle-opacity': showMicroplastics ? 0.7 : 0
         }
       });
 
@@ -118,8 +121,14 @@ export default function Map() {
           mapRef.current.getCanvas().style.cursor = '';
         }
       });
+    } else {
+      mapRef.current.setPaintProperty(
+        'microplastics-points',
+        'circle-opacity',
+        showMicroplastics ? 0.7 : 0
+      );
     }
-  }, []);
+  }, [showMicroplastics, getFilteredMicroplasticsData]);
 
   const loadMap = useCallback(() => {
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -161,13 +170,27 @@ export default function Map() {
     };
   }, [loadMap]);
 
+  useEffect(() => {
+    if (mapRef.current?.loaded()) {
+      addDataLayers();
+    }
+  }, [showMicroplastics, addDataLayers]);
+
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="w-full h-full" />
       
+      {showMicroplastics && (
+        <div className="absolute top-16 right-4 bg-black/40 backdrop-blur-md px-4 py-2 rounded-md shadow-md">
+          <p className="font-medium text-white">
+            Showing {dataPointCount} data points
+          </p>
+        </div>
+      )}
+
       <button
         onClick={toggleMapStyle}
-        className="group absolute bottom-4 right-4 ml-auto bg-background p-2 rounded-md shadow-md hover:bg-deep-water transition-colors text-2xl"
+        className="group absolute bottom-4 right-4 ml-auto bg-black/40 backdrop-blur-md p-2 rounded-md shadow-md hover:bg-deep-water transition-colors text-2xl"
       >
         <span className="transition-opacity duration-200 group-hover:opacity-0">
           {isStreetView ? '🚦' : '🛰️'}

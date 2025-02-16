@@ -5,7 +5,7 @@
 :root {
   --background: #f0f8ff; /* Light azure */
   --foreground: #003366; /* Deep blue */
-  --primary: #006994; /* Ocean blue */
+  --primary: rgb(0, 106, 148); /* Ocean blue */
   --secondary: #20b2aa; /* Light sea green */
   --accent: #00ff7f; /* Spring green */
   --deep-water: #000080; /* Navy blue */

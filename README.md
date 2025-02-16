@@ -2,6 +2,15 @@
 
 A Next.js application for visualizing geographical ocean data.
 
+## Current Features
+
+- Interactive global map powered by Mapbox
+- Visualization of [microplastics data sourced from NOAA](https://www.ncei.noaa.gov/products/microplastics)
+- Toggle between street view and satellite map styles
+- Interactive data points with detailed information popups including
+- Real-time data point count display
+- Responsive design with a modern UI
+
 ## Prerequisites
 
 - Node.js (Latest LTS version recommended: use [nvm](https://github.com/nvm-sh/nvm))
@@ -62,3 +71,11 @@ The application will be available at `http://localhost:3005`
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
+
+## Acknowledgements
+
+- [NOAA](https://www.ncei.noaa.gov/products/microplastics) for providing the microplastics data
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
