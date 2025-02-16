@@ -1,12 +1,11 @@
 'use client';
 
 import Map from '@/components/Map';
-import { Sidebar } from '@/components/Sidebar';
+import Sidebar from '@/components/Sidebar';
 import { useState } from 'react';
 
 export default function Home() {
   const [showMicroplastics, setShowMicroplastics] = useState(true);
-  const [showVessels, setShowVessels] = useState(false);
   const [yearFilter, setYearFilter] = useState<{
     type: 'single' | 'range';
     minYear: number;
@@ -18,14 +17,11 @@ export default function Home() {
       <Sidebar 
         showMicroplastics={showMicroplastics}
         onToggleMicroplastics={setShowMicroplastics}
-        showVessels={showVessels}
-        onToggleVessels={setShowVessels}
         onYearFilterChange={setYearFilter}
       />
       <div className="flex-1">
         <Map 
           showMicroplastics={showMicroplastics}
-          showVessels={showVessels}
           yearFilter={yearFilter}
         />
       </div>

@@ -56,8 +56,10 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
 
     const filteredData = {
       type: 'FeatureCollection',
-      features: (microplasticsData as any).features.filter((feature: any) => {
-        const date = new Date(feature.properties.Date);
+      features: (microplasticsData as GeoJSON.FeatureCollection).features.filter((feature: GeoJSON.Feature) => {
+        const date = new Date(feature.properties?.Date);
+        if (!date) return false;
+
         const year = date.getFullYear();
         
         if (yearFilter.type === 'single') {
@@ -66,7 +68,7 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
           return year >= yearFilter.minYear && year <= yearFilter.maxYear;
         }
       })
-    };
+    } as GeoJSON.FeatureCollection;
 
     setDataPointCount(filteredData.features.length);
     (mapRef.current.getSource('microplastics') as mapboxgl.GeoJSONSource).setData(filteredData);
@@ -83,8 +85,10 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
       });
 
       // Initialize data point count when source is first added
-      const filteredData = (microplasticsData as any).features.filter((feature: any) => {
-        const date = new Date(feature.properties.Date);
+      const filteredData = (microplasticsData as GeoJSON.FeatureCollection).features.filter((feature: GeoJSON.Feature) => {
+        const date = new Date(feature.properties?.Date);
+        if (!date) return false;
+        
         const year = date.getFullYear();
         
         if (yearFilter.type === 'single') {

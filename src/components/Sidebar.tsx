@@ -1,16 +1,14 @@
 import { useState } from 'react';
 
-type SidebarProps = {
+export default function Sidebar({ 
+  showMicroplastics, 
+  onToggleMicroplastics, 
+  onYearFilterChange
+}: {
   showMicroplastics: boolean;
   onToggleMicroplastics: (show: boolean) => void;
   onYearFilterChange?: (filter: { type: 'single' | 'range', minYear: number, maxYear: number }) => void;
-};
-
-export const Sidebar = ({ 
-  showMicroplastics, 
-  onToggleMicroplastics,
-  onYearFilterChange
-}: SidebarProps) => {
+}) {
   const [filterType, setFilterType] = useState<'single' | 'range'>('single');
   const [singleYear, setSingleYear] = useState<number>(2020);
   const [minYear, setMinYear] = useState<number>(2015);
