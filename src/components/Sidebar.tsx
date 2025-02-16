@@ -25,23 +25,23 @@ export default function Sidebar({
   };
 
   return (
-    <div className="w-64 h-full bg-white shadow-lg p-4">
-      <h2 className="text-xl font-semibold mb-4 text-black">Microplastics Settings</h2>
-      <div className="flex flex-col space-y-4">
+    <div className="mt-16 m-5 fixed w-fit text-white bg-black/40 backdrop-blur-md rounded-lg shadow-md p-4 z-50">
+      <h2 className="text-lg font-semibold mb-2">Options</h2>
+      <div className="flex flex-col gap-4">
         <div className="flex items-center space-x-2">
           <input
             type="checkbox"
             id="showMicroplastics"
             checked={showMicroplastics}
             onChange={(e) => onToggleMicroplastics(e.target.checked)}
-            className="w-4 h-4 text-deep-water"
+            className="w-4 h-4 text-primary"
           />
-          <label htmlFor="showMicroplastics" className="text-black">Show Microplastics Data</label>
+          <label htmlFor="showMicroplastics">Show Microplastics Data</label>
         </div>
 
         {showMicroplastics && (
           <>
-            <div className="space-y-2">
+            <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <input
                   type="radio"
@@ -49,9 +49,9 @@ export default function Sidebar({
                   name="filterType"
                   checked={filterType === 'single'}
                   onChange={() => setFilterType('single')}
-                  className="text-deep-water"
+                  className="text-primary"
                 />
-                <label htmlFor="singleYear" className="text-black">Single Year</label>
+                <label htmlFor="singleYear">Single Year</label>
               </div>
               
               <div className="flex items-center space-x-2">
@@ -61,43 +61,43 @@ export default function Sidebar({
                   name="filterType"
                   checked={filterType === 'range'}
                   onChange={() => setFilterType('range')}
-                  className="text-deep-water"
+                  className="text-primary"
                 />
-                <label htmlFor="yearRange" className="text-black">Year Range</label>
+                <label htmlFor="yearRange">Year Range</label>
               </div>
             </div>
 
             {filterType === 'single' ? (
-              <div className="space-y-2">
-                <label htmlFor="year" className="block text-sm font-medium text-black">Year</label>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="year" className="block text-sm font-medium">Year</label>
                 <input
                   type="number"
                   id="year"
                   value={singleYear}
                   onChange={(e) => setSingleYear(Number(e.target.value))}
-                  className="w-full p-2 border rounded-md text-black"
+                  className="w-full px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
                 />
               </div>
             ) : (
               <div className="space-y-2">
-                <div>
-                  <label htmlFor="minYear" className="block text-sm font-medium text-black">Min Year</label>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="minYear" className="block text-sm font-medium">Min Year</label>
                   <input
                     type="number"
                     id="minYear"
                     value={minYear}
                     onChange={(e) => setMinYear(Number(e.target.value))}
-                    className="w-full p-2 border rounded-md text-black"
+                    className="w-full px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
                   />
                 </div>
-                <div>
-                  <label htmlFor="maxYear" className="block text-sm font-medium text-black">Max Year</label>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="maxYear" className="block text-sm font-medium">Max Year</label>
                   <input
                     type="number"
                     id="maxYear"
                     value={maxYear}
                     onChange={(e) => setMaxYear(Number(e.target.value))}
-                    className="w-full p-2 border rounded-md text-black"
+                    className="w-full px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
                   />
                 </div>
               </div>
@@ -105,7 +105,7 @@ export default function Sidebar({
 
             <button
               onClick={handleApply}
-              className="w-full bg-deep-water text-white py-2 px-4 rounded-md hover:bg-opacity-90 transition-colors"
+              className="flex w-fit bg-black/20 py-1 px-2 rounded-md transform transition-transform hover:scale-[1.07] self-end"
             >
               Apply
             </button>

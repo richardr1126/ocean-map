@@ -225,8 +225,8 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
       <div ref={mapContainerRef} className="w-full h-full" />
       
       {showMicroplastics && (
-        <div className="absolute top-4 right-4 bg-white bg-opacity-90 px-4 py-2 rounded-md shadow-md">
-          <p className="text-black font-medium">
+        <div className="absolute top-16 right-4 bg-black/40 backdrop-blur-md px-4 py-2 rounded-md shadow-md">
+          <p className="font-medium text-white">
             Showing {dataPointCount} data points
           </p>
         </div>
@@ -234,7 +234,7 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
 
       <button
         onClick={toggleMapStyle}
-        className="group absolute bottom-4 right-4 ml-auto bg-background p-2 rounded-md shadow-md hover:bg-deep-water transition-colors text-2xl"
+        className="group absolute bottom-4 right-4 ml-auto bg-black/40 backdrop-blur-md p-2 rounded-md shadow-md hover:bg-deep-water transition-colors text-2xl"
       >
         <span className="transition-opacity duration-200 group-hover:opacity-0">
           {isStreetView ? '🚦' : '🛰️'}
