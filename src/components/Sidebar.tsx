@@ -5,15 +5,14 @@ export default function Sidebar() {
   const { layers, toggleLayer, yearFilter, setYearFilter } = useData();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [filterType, setFilterType] = useState<'single' | 'range'>(yearFilter.type);
-  const [singleYear, setSingleYear] = useState<number>(yearFilter.minYear);
-  const [minYear, setMinYear] = useState<number>(yearFilter.minYear);
-  const [maxYear, setMaxYear] = useState<number>(yearFilter.maxYear);
 
-  const handleApply = () => {
+  // Update filter type and apply changes immediately
+  const handleFilterTypeChange = (type: 'single' | 'range') => {
+    setFilterType(type);
     setYearFilter({
-      type: filterType,
-      minYear: filterType === 'single' ? singleYear : minYear,
-      maxYear: filterType === 'single' ? singleYear : maxYear
+      type,
+      minYear: type === 'single' ? yearFilter.minYear : yearFilter.minYear,
+      maxYear: type === 'single' ? yearFilter.minYear : yearFilter.maxYear
     });
   };
 
@@ -72,13 +71,13 @@ export default function Sidebar() {
                 <div className="flex w-full rounded-lg overflow-hidden bg-black/20">
                   <button
                     className={`flex-1 p-1 transition-colors ${filterType === 'range' ? 'bg-black/40' : 'hover:bg-black/30'}`}
-                    onClick={() => setFilterType('range')}
+                    onClick={() => handleFilterTypeChange('range')}
                   >
                     Range
                   </button>
                   <button
                     className={`flex-1 p-1 transition-colors ${filterType === 'single' ? 'bg-black/40' : 'hover:bg-black/30'}`}
-                    onClick={() => setFilterType('single')}
+                    onClick={() => handleFilterTypeChange('single')}
                   >
                     Year
                   </button>
@@ -90,9 +89,13 @@ export default function Sidebar() {
                     <input
                       type="number"
                       id="year"
-                      value={singleYear}
-                      onChange={(e) => setSingleYear(Number(e.target.value))}
-                      className="w-40 px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
+                      value={yearFilter.minYear}
+                      onChange={(e) => setYearFilter({
+                        type: 'single',
+                        minYear: Number(e.target.value),
+                        maxYear: Number(e.target.value)
+                      })}
+                      className="w-full px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
                     />
                   </div>
                 ) : (
@@ -102,8 +105,12 @@ export default function Sidebar() {
                       <input
                         type="number"
                         id="minYear"
-                        value={minYear}
-                        onChange={(e) => setMinYear(Number(e.target.value))}
+                        value={yearFilter.minYear}
+                        onChange={(e) => setYearFilter({
+                          type: 'range',
+                          minYear: Number(e.target.value),
+                          maxYear: yearFilter.maxYear
+                        })}
                         className="w-20 px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
                       />
                     </div>
@@ -112,20 +119,17 @@ export default function Sidebar() {
                       <input
                         type="number"
                         id="maxYear"
-                        value={maxYear}
-                        onChange={(e) => setMaxYear(Number(e.target.value))}
+                        value={yearFilter.maxYear}
+                        onChange={(e) => setYearFilter({
+                          type: 'range',
+                          minYear: yearFilter.minYear,
+                          maxYear: Number(e.target.value)
+                        })}
                         className="w-20 px-2 py-0.5 rounded-md bg-black/20 border-0 ring-primary"
                       />
                     </div>
                   </div>
                 )}
-
-                <button
-                  onClick={handleApply}
-                  className="flex w-fit bg-black/20 py-1 px-2 rounded-md transform transition-transform hover:scale-[1.07] self-end"
-                >
-                  Apply
-                </button>
               </>
             )}
           </div>
