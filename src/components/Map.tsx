@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import microplasticsData from '@/data/nasa_microplastics.json';
+import { useData } from '@/contexts/DataContext';
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -36,43 +36,11 @@ const formatMicroplasticsData = (properties: GeoJSON.GeoJsonProperties) => {
     .join('');
 };
 
-interface MapProps {
-  showMicroplastics: boolean;
-  yearFilter: {
-    type: 'single' | 'range';
-    minYear: number;
-    maxYear: number;
-  };
-}
-
-export default function Map({ showMicroplastics, yearFilter }: MapProps) {
+export default function Map() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [isStreetView, setIsStreetView] = useState(true);
-  const [dataPointCount, setDataPointCount] = useState(0);
-
-  const filterDataByYear = useCallback(() => {
-    if (!mapRef.current || !mapRef.current.getSource('microplastics')) return;
-
-    const filteredData = {
-      type: 'FeatureCollection',
-      features: (microplasticsData as GeoJSON.FeatureCollection).features.filter((feature: GeoJSON.Feature) => {
-        const date = new Date(feature.properties?.Date);
-        if (!date) return false;
-
-        const year = date.getFullYear();
-        
-        if (yearFilter.type === 'single') {
-          return year === yearFilter.minYear;
-        } else {
-          return year >= yearFilter.minYear && year <= yearFilter.maxYear;
-        }
-      })
-    } as GeoJSON.FeatureCollection;
-
-    setDataPointCount(filteredData.features.length);
-    (mapRef.current.getSource('microplastics') as mapboxgl.GeoJSONSource).setData(filteredData);
-  }, [yearFilter]);
+  const { showMicroplastics, getFilteredMicroplasticsData, dataPointCount } = useData();
 
   const addDataLayers = useCallback(() => {
     if (!mapRef.current) return;
@@ -81,23 +49,10 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
     if (!mapRef.current.getSource('microplastics')) {
       mapRef.current.addSource('microplastics', {
         type: 'geojson',
-        data: microplasticsData as GeoJSON.FeatureCollection
+        data: getFilteredMicroplasticsData()
       });
-
-      // Initialize data point count when source is first added
-      const filteredData = (microplasticsData as GeoJSON.FeatureCollection).features.filter((feature: GeoJSON.Feature) => {
-        const date = new Date(feature.properties?.Date);
-        if (!date) return false;
-        
-        const year = date.getFullYear();
-        
-        if (yearFilter.type === 'single') {
-          return year === yearFilter.minYear;
-        } else {
-          return year >= yearFilter.minYear && year <= yearFilter.maxYear;
-        }
-      });
-      setDataPointCount(filteredData.length);
+    } else {
+      (mapRef.current.getSource('microplastics') as mapboxgl.GeoJSONSource).setData(getFilteredMicroplasticsData());
     }
 
     // Add a layer to visualize the points
@@ -173,7 +128,7 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
         showMicroplastics ? 0.7 : 0
       );
     }
-  }, [showMicroplastics, yearFilter]);
+  }, [showMicroplastics, getFilteredMicroplasticsData]);
 
   const loadMap = useCallback(() => {
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -215,10 +170,11 @@ export default function Map({ showMicroplastics, yearFilter }: MapProps) {
     };
   }, [loadMap]);
 
-  // Add useEffect to handle year filter changes
   useEffect(() => {
-    filterDataByYear();
-  }, [filterDataByYear]);
+    if (mapRef.current?.loaded()) {
+      addDataLayers();
+    }
+  }, [showMicroplastics, addDataLayers]);
 
   return (
     <div className="relative w-full h-full">

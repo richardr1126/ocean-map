@@ -1,28 +1,20 @@
 import { useState } from 'react';
+import { useData } from '@/contexts/DataContext';
 
-export default function Sidebar({
-  showMicroplastics,
-  onToggleMicroplastics,
-  onYearFilterChange
-}: {
-  showMicroplastics: boolean;
-  onToggleMicroplastics: (show: boolean) => void;
-  onYearFilterChange?: (filter: { type: 'single' | 'range', minYear: number, maxYear: number }) => void;
-}) {
+export default function Sidebar() {
+  const { showMicroplastics, setShowMicroplastics, yearFilter, setYearFilter } = useData();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [filterType, setFilterType] = useState<'single' | 'range'>('single');
-  const [singleYear, setSingleYear] = useState<number>(2020);
-  const [minYear, setMinYear] = useState<number>(2015);
-  const [maxYear, setMaxYear] = useState<number>(2023);
+  const [filterType, setFilterType] = useState<'single' | 'range'>(yearFilter.type);
+  const [singleYear, setSingleYear] = useState<number>(yearFilter.minYear);
+  const [minYear, setMinYear] = useState<number>(yearFilter.minYear);
+  const [maxYear, setMaxYear] = useState<number>(yearFilter.maxYear);
 
   const handleApply = () => {
-    if (onYearFilterChange) {
-      onYearFilterChange({
-        type: filterType,
-        minYear: filterType === 'single' ? singleYear : minYear,
-        maxYear: filterType === 'single' ? singleYear : maxYear
-      });
-    }
+    setYearFilter({
+      type: filterType,
+      minYear: filterType === 'single' ? singleYear : minYear,
+      maxYear: filterType === 'single' ? singleYear : maxYear
+    });
   };
 
   return (
@@ -62,7 +54,7 @@ export default function Sidebar({
                 type="checkbox"
                 id="showMicroplastics"
                 checked={showMicroplastics}
-                onChange={(e) => onToggleMicroplastics(e.target.checked)}
+                onChange={(e) => setShowMicroplastics(e.target.checked)}
                 className="w-4 h-4 text-primary"
               />
               <label htmlFor="showMicroplastics">Show Microplastics Data</label>

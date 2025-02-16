@@ -2,27 +2,15 @@
 
 import Map from '@/components/Map';
 import Sidebar from '@/components/Sidebar';
-import { useState } from 'react';
+import { DataProvider } from '@/contexts/DataContext';
 
 export default function Home() {
-  const [showMicroplastics, setShowMicroplastics] = useState(true);
-  const [yearFilter, setYearFilter] = useState<{
-    type: 'single' | 'range';
-    minYear: number;
-    maxYear: number;
-  }>({ type: 'single', minYear: 2020, maxYear: 2020 });
-
   return (
-    <main className="z-10 w-full h-screen">
-      <Sidebar 
-        showMicroplastics={showMicroplastics}
-        onToggleMicroplastics={setShowMicroplastics}
-        onYearFilterChange={setYearFilter}
-      />
-      <Map 
-        showMicroplastics={showMicroplastics}
-        yearFilter={yearFilter}
-      />
-    </main>
+    <DataProvider>
+      <main className="z-10 w-full h-screen">
+        <Sidebar />
+        <Map />
+      </main>
+    </DataProvider>
   );
 }
