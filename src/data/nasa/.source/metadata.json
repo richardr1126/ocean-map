@@ -1,8 +1,0 @@
-{
-    "description": "\nFloating marine debris is a global pollution problem which leads to the loss of marine and terrestrial biodiversity. Large swaths of marine debris are also navigational hazards to ocean vessels. The use of Earth observation data and artificial intelligence techniques can revolutionize the detection of floating marine debris on satellite imagery and pave the way to a global monitoring system for controlling and preventing the accumulation of marine debris in oceans.\nThis dataset consists of imag",
-    "tags": [
-        "marine debris",
-        "planetscope",
-        "segmentation"
-    ]
-}

@@ -46,6 +46,16 @@ const formatNasaPopup = (properties: GeoJSON.GeoJsonProperties) => {
   `;
 };
 
+const formatNtuaPopup = (properties: GeoJSON.GeoJsonProperties) => {
+  if (!properties) return '';
+  
+  return `
+    <p class="flex flex-wrap mb-1 break-all space-x-1">
+      <span class="font-semibold">Detection:</span> Marine Floating Debris
+    </p>
+  `;
+};
+
 export default function Map() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -129,7 +139,9 @@ export default function Map() {
           const properties = feature.properties;
           const popupContent = layer.id === 'microplastics' 
             ? formatMicroplasticsPopup(properties)
-            : formatNasaPopup(properties);
+            : layer.id === 'nasa'
+            ? formatNasaPopup(properties)
+            : formatNtuaPopup(properties);
 
           new mapboxgl.Popup()
             .setLngLat(coordinates)

@@ -16,6 +16,7 @@ export default function Sidebar() {
     });
   };
 
+  // Only show year filter if microplastics layer is visible
   const showYearFilter = layers.some(layer => layer.visible && layer.id === 'microplastics');
 
   return (
