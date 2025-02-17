@@ -15,7 +15,7 @@ const formatDate = (dateString: string) => {
 
 const formatMicroplasticsPopup = (properties: GeoJSON.GeoJsonProperties) => {
   if (!properties) return '';
-  
+
   const relevantData = {
     'Method': properties.SAMPMETHOD,
     'Density': properties.DENSTEXT,
@@ -27,8 +27,8 @@ const formatMicroplasticsPopup = (properties: GeoJSON.GeoJsonProperties) => {
   };
 
   return Object.entries(relevantData)
-    .map(([key, value]) => value ? 
-    `
+    .map(([key, value]) => value ?
+      `
     <p class="flex flex-wrap mb-1 break-all space-x-1">
       <span class="font-semibold">${key}:</span> ${value}
     <p>
@@ -38,7 +38,7 @@ const formatMicroplasticsPopup = (properties: GeoJSON.GeoJsonProperties) => {
 
 const formatNasaPopup = (properties: GeoJSON.GeoJsonProperties) => {
   if (!properties) return '';
-  
+
   return `
     <p class="flex flex-wrap mb-1 break-all space-x-1">
       <span class="font-semibold">Detection:</span> Floating Marine Debris
@@ -48,12 +48,48 @@ const formatNasaPopup = (properties: GeoJSON.GeoJsonProperties) => {
 
 const formatNtuaPopup = (properties: GeoJSON.GeoJsonProperties) => {
   if (!properties) return '';
-  
+
   return `
     <p class="flex flex-wrap mb-1 break-all space-x-1">
       <span class="font-semibold">Detection:</span> Marine Floating Debris
     </p>
   `;
+};
+
+const calculatePolygonCentroid = (coordinates: number[][][]) => {
+  let totalX = 0;
+  let totalY = 0;
+  let pointCount = 0;
+
+  // Handle the outer ring of the polygon
+  coordinates[0].forEach(point => {
+    totalX += point[0];
+    totalY += point[1];
+    pointCount++;
+  });
+
+  return [totalX / pointCount, totalY / pointCount];
+};
+
+const createPointFeatureFromPolygon = (feature: GeoJSON.Feature): GeoJSON.Feature => {
+  const geometry = feature.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon;
+  let centroid;
+
+  if (geometry.type === 'Polygon') {
+    centroid = calculatePolygonCentroid(geometry.coordinates);
+  } else {
+    // For MultiPolygon, use the centroid of the first polygon
+    centroid = calculatePolygonCentroid(geometry.coordinates[0]);
+  }
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Point',
+      coordinates: centroid
+    },
+    properties: feature.properties
+  };
 };
 
 export default function Map() {
@@ -62,135 +98,227 @@ export default function Map() {
   const layersRef = useRef<Set<string>>(new Set());
   const [isStreetView, setIsStreetView] = useState(true);
   const { layers, getFilteredData, dataPointCount } = useData();
-  
-  const convertPolygonToPoint = useCallback((feature: GeoJSON.Feature) => {
-    if (feature.geometry.type === 'Polygon') {
-      const coordinates = feature.geometry.coordinates[0][0];
-      return {
-        ...feature,
-        geometry: {
-          type: 'Point',
-          coordinates: coordinates
-        }
-      };
-    }
-    return feature;
-  }, []);
 
   const updateLayer = useCallback((layer: { id: string, color: string, visible: boolean }) => {
     if (!mapRef.current) return;
 
-    const layerId = `${layer.id}-points`;
+    const layerId = `${layer.id}-layer`;
     const map = mapRef.current;
     const data = getFilteredData(layer.id);
 
-    // Convert polygon features to points
-    const pointData = {
-      type: 'FeatureCollection',
-      features: data.features.map(convertPolygonToPoint)
-    } as GeoJSON.FeatureCollection;
+    // Remove existing layers and sources
+    [layerId, `${layerId}-point`].forEach(id => {
+      if (layersRef.current.has(id) && map.getLayer(id)) {
+        map.removeLayer(id);
+        layersRef.current.delete(id);
+      }
+    });
 
-    // Remove existing layer if it exists
-    if (layersRef.current.has(layerId) && map.getLayer(layerId)) {
-      map.removeLayer(layerId);
-    }
-
-    // Update existing source if it exists
     if (map.getSource(layer.id)) {
-      (map.getSource(layer.id) as mapboxgl.GeoJSONSource).setData(pointData);
-    } else {
-      // Add new source if it doesn't exist
-      map.addSource(layer.id, {
-        type: 'geojson',
-        data: pointData
-      });
+      map.removeSource(layer.id);
+    }
+    if (map.getSource(`${layer.id}-point`)) {
+      map.removeSource(`${layer.id}-point`);
     }
 
     // Add layer if it's meant to be visible
     if (layer.visible) {
-      map.addLayer({
-        id: layerId,
-        type: 'circle',
-        source: layer.id,
-        paint: {
-          'circle-radius': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            0, layer.id === 'nasa' ? 4 : 3,
-            8, layer.id === 'nasa' ? 8 : 6
-          ],
-          'circle-color': layer.color,
-          'circle-opacity': 0.8,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-opacity': 1
-        }
-      });
+      const firstFeature = data.features[0];
+      const isPolygon = firstFeature?.geometry.type === 'Polygon' || firstFeature?.geometry.type === 'MultiPolygon';
 
-      layersRef.current.add(layerId);
+      if (isPolygon && layer.id !== 'microplastics') {
+        // Add the original polygon source
+        map.addSource(layer.id, {
+          type: 'geojson',
+          data: data
+        });
 
-      // Add event listeners
-      map.on('click', layerId, (e) => {
-        const feature = e.features?.[0];
-        if (!feature) return;
-
-        const getCoordinates = (feature: GeoJSON.Feature): [number, number] => {
-          if (feature.geometry.type === 'Point') {
-            const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates;
-            return [lng, lat];
-          }
-          return [e.lngLat.lng, e.lngLat.lat];
+        // Create a point source from polygon centroids only for NASA and NTUA data
+        const pointData: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: data.features.map(createPointFeatureFromPolygon)
         };
 
-        const coordinates = getCoordinates(feature);
-          
-        const properties = feature.properties;
-        const popupContent = layer.id === 'microplastics' 
-          ? formatMicroplasticsPopup(properties)
-          : layer.id === 'nasa'
-          ? formatNasaPopup(properties)
-          : formatNtuaPopup(properties);
+        map.addSource(`${layer.id}-point`, {
+          type: 'geojson',
+          data: pointData
+        });
 
-        new mapboxgl.Popup()
-          .setLngLat(coordinates)
-          .setHTML(`
-            <div class="flex flex-col text-deep-water p-2 max-w-sm">
-              <div class="mb-3">
-                <div class="mb-1">
-                  <span class="font-semibold">Latitude:</span> ${coordinates[1].toFixed(4)}°
+        // Add point layer for low zoom levels
+        const pointLayerId = `${layerId}-point`;
+        const pointLayer: mapboxgl.LayerSpecification = {
+          id: pointLayerId,
+          type: 'circle',
+          source: `${layer.id}-point`,
+          maxzoom: 10,
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              0, 4,
+              8, 8
+            ],
+            'circle-color': layer.color,
+            'circle-opacity': 0.6,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-opacity': 1
+          }
+        };
+        map.addLayer(pointLayer);
+        layersRef.current.add(pointLayerId);
+
+        // Add polygon layer for high zoom levels
+        const polygonLayer: mapboxgl.LayerSpecification = {
+          id: layerId,
+          type: 'fill',
+          source: layer.id,
+          minzoom: 10,
+          paint: {
+            'fill-color': layer.color,
+            'fill-opacity': 0.6,
+            'fill-outline-color': '#ffffff'
+          }
+        };
+        map.addLayer(polygonLayer);
+        layersRef.current.add(layerId);
+
+        // Add click handlers for both layers
+        [pointLayerId, layerId].forEach(id => {
+          map.on('click', id, (e) => {
+            const feature = e.features?.[0];
+            if (!feature) return;
+
+            const coordinates = e.lngLat;
+            const properties = feature.properties;
+            const popupContent = layer.id === 'microplastics'
+              ? formatMicroplasticsPopup(properties)
+              : layer.id === 'nasa'
+                ? formatNasaPopup(properties)
+                : formatNtuaPopup(properties);
+
+            new mapboxgl.Popup()
+              .setLngLat(coordinates)
+              .setHTML(`
+                <div class="flex flex-col text-deep-water p-2 max-w-sm">
+                  <div class="mb-3">
+                    <div class="mb-1">
+                      <span class="font-semibold">Latitude:</span> ${coordinates.lat.toFixed(4)}°
+                    </div>
+                    <div class="mb-1">
+                      <span class="font-semibold">Longitude:</span> ${coordinates.lng.toFixed(4)}°
+                    </div>
+                  </div>
+                  <div class="flex flex-col space-y-0.5">
+                    ${popupContent}
+                  </div>
+                  ${properties?.DOI ? `
+                    <button class="mt-2 text-sm">
+                      <a href="${properties.DOI}" 
+                         target="_blank" 
+                         rel="noopener noreferrer"
+                         class="text-blue-600 hover:text-blue-800 hover:underline">
+                        View Research Paper
+                      </a>
+                    </button>
+                  ` : ''}
                 </div>
-                <div class="mb-1">
-                  <span class="font-semibold">Longitude:</span> ${coordinates[0].toFixed(4)}°
+              `)
+              .addTo(map);
+          });
+
+          map.on('mouseenter', id, () => {
+            map.getCanvas().style.cursor = 'pointer';
+          });
+
+          map.on('mouseleave', id, () => {
+            map.getCanvas().style.cursor = '';
+          });
+        });
+      } else {
+        // For non-polygon data or microplastics, use regular circle layer
+        map.addSource(layer.id, {
+          type: 'geojson',
+          data: data
+        });
+
+        const layerConfig: mapboxgl.LayerSpecification = {
+          id: layerId,
+          type: 'circle',
+          source: layer.id,
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              0, 4,
+              8, 8
+            ],
+            'circle-color': layer.color,
+            'circle-opacity': 0.6,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-opacity': 1
+          }
+        };
+
+        map.addLayer(layerConfig);
+        layersRef.current.add(layerId);
+
+        // Add event listeners for regular layers
+        map.on('click', layerId, (e) => {
+          const feature = e.features?.[0];
+          if (!feature) return;
+
+          const coordinates = e.lngLat;
+          const properties = feature.properties;
+          const popupContent = layer.id === 'microplastics'
+            ? formatMicroplasticsPopup(properties)
+            : layer.id === 'nasa'
+              ? formatNasaPopup(properties)
+              : formatNtuaPopup(properties);
+
+          new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(`
+              <div class="flex flex-col text-deep-water p-2 max-w-sm">
+                <div class="mb-3">
+                  <div class="mb-1">
+                    <span class="font-semibold">Latitude:</span> ${coordinates.lat.toFixed(4)}°
+                  </div>
+                  <div class="mb-1">
+                    <span class="font-semibold">Longitude:</span> ${coordinates.lng.toFixed(4)}°
+                  </div>
                 </div>
+                <div class="flex flex-col space-y-0.5">
+                  ${popupContent}
+                </div>
+                ${properties?.DOI ? `
+                  <button class="mt-2 text-sm">
+                    <a href="${properties.DOI}" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       class="text-blue-600 hover:text-blue-800 hover:underline">
+                      View Research Paper
+                    </a>
+                  </button>
+                ` : ''}
               </div>
-              <div class="flex flex-col space-y-0.5">
-                ${popupContent}
-              </div>
-              ${properties?.DOI ? `
-                <button class="mt-2 text-sm">
-                  <a href="${properties.DOI}" 
-                     target="_blank" 
-                     rel="noopener noreferrer"
-                     class="text-blue-600 hover:text-blue-800 hover:underline">
-                    View Research Paper
-                  </a>
-                </button>
-              ` : ''}
-            </div>
-          `)
-          .addTo(map);
-      });
+            `)
+            .addTo(map);
+        });
 
-      map.on('mouseenter', layerId, () => {
-        map.getCanvas().style.cursor = 'pointer';
-      });
+        map.on('mouseenter', layerId, () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
 
-      map.on('mouseleave', layerId, () => {
-        map.getCanvas().style.cursor = '';
-      });
+        map.on('mouseleave', layerId, () => {
+          map.getCanvas().style.cursor = '';
+        });
+      }
     }
-  }, [convertPolygonToPoint, getFilteredData]);
+  }, [getFilteredData]);
 
   const loadMap = useCallback(() => {
     // Only initialize map if it hasn't been initialized yet
@@ -225,11 +353,11 @@ export default function Map() {
   const toggleMapStyle = useCallback(() => {
     const satellite = 'mapbox://styles/mapbox/satellite-v9';
     const streets = 'mapbox://styles/mapbox/streets-v12';
-    
+
     if (mapRef.current) {
       mapRef.current.setStyle(isStreetView ? satellite : streets);
       setIsStreetView(!isStreetView);
-      
+
       // Re-add data layers after style change
       mapRef.current.once('style.load', () => {
         layers.forEach(updateLayer);
@@ -240,21 +368,19 @@ export default function Map() {
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="w-full h-full" />
-      
-      <div className="absolute top-16 right-4 flex flex-col gap-2">
+
+      <div className="absolute top-16 right-4 flex flex-col gap-2 bg-white/30 dark:bg-black/40 backdrop-blur-md px-4 py-2 rounded-md shadow-md">
         {layers.map(layer => layer.visible && (
-          <div key={layer.id} className="bg-white/30 dark:bg-black/40 backdrop-blur-md px-4 py-2 rounded-md shadow-md">
-            <p className="font-medium text-foreground flex items-center gap-2">
-              <span className="w-3 h-3 inline-block rounded-full" style={{ backgroundColor: layer.color }}></span>
-              {dataPointCount[layer.id]} points
-            </p>
-          </div>
+          <p key={layer.id} className="font-medium text-foreground flex items-center gap-2">
+            <span className="w-3 h-3 inline-block rounded-full" style={{ backgroundColor: layer.color }}></span>
+            {dataPointCount[layer.id]} points
+          </p>
         ))}
       </div>
 
       <button
         onClick={toggleMapStyle}
-        className="group absolute bottom-4 right-4 ml-auto bg-black/40 backdrop-blur-md p-2 rounded-md shadow-md hover:bg-deep-water transition-colors text-2xl"
+        className="group absolute bottom-4 right-4 ml-auto bg-white/30 dark:bg-black/40 backdrop-blur-md p-2 rounded-md shadow-md hover:bg-deep-water transition-colors text-2xl"
       >
         <span className="transition-opacity duration-200 group-hover:opacity-0">
           {isStreetView ? '🚦' : '🛰️'}
