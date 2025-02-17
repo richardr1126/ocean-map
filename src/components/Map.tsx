@@ -144,40 +144,56 @@ export default function Map() {
           data: pointData
         });
 
-        // Add point layer for low zoom levels
+        // Add point layer for all zoom levels (but fade out at high zoom)
         const pointLayerId = `${layerId}-point`;
         const pointLayer: mapboxgl.LayerSpecification = {
           id: pointLayerId,
           type: 'circle',
           source: `${layer.id}-point`,
-          maxzoom: 10,
           paint: {
             'circle-radius': [
               'interpolate',
               ['linear'],
               ['zoom'],
-              0, 4,
-              8, 8
+              0, 6,
+              8, 4
             ],
             'circle-color': layer.color,
-            'circle-opacity': 0.6,
+            'circle-opacity': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              9, 0.6,  // Full opacity until zoom level 9
+              11, 0    // Fade to completely transparent by zoom level 12
+            ],
             'circle-stroke-width': 1,
             'circle-stroke-color': '#ffffff',
-            'circle-stroke-opacity': 1
+            'circle-stroke-opacity': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              9, 1,
+              11, 0
+            ]
           }
         };
         map.addLayer(pointLayer);
         layersRef.current.add(pointLayerId);
 
-        // Add polygon layer for high zoom levels
+        // Add polygon layer that fades in at higher zoom levels
         const polygonLayer: mapboxgl.LayerSpecification = {
           id: layerId,
           type: 'fill',
           source: layer.id,
-          minzoom: 10,
           paint: {
             'fill-color': layer.color,
-            'fill-opacity': 0.6,
+            'fill-opacity': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              9, 0,    // Completely transparent until zoom level 9
+              11, 0.6  // Fade to full opacity by zoom level 12
+            ],
             'fill-outline-color': '#ffffff'
           }
         };
@@ -253,7 +269,7 @@ export default function Map() {
               ['linear'],
               ['zoom'],
               0, 4,
-              8, 8
+              8, 6
             ],
             'circle-color': layer.color,
             'circle-opacity': 0.6,
