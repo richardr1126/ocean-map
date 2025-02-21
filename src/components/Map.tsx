@@ -434,17 +434,6 @@ export default function Map() {
     };
   }, [selectedPoint, isSimulating, startSimulation, cleanupSimulation]);
 
-  // Handle simulation state changes
-  useEffect(() => {
-    if (!selectedPoint) return;
-
-    if (isSimulating) {
-      mapRef.current && startSimulation(mapRef.current, [selectedPoint.lng, selectedPoint.lat]);
-    } else {
-      stopSimulation();
-    }
-  }, [isSimulating, selectedPoint, startSimulation, stopSimulation]);
-
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="w-full h-full" />
