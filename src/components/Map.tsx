@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useData } from '@/contexts/DataContext';
+import { useSimulation } from '@/contexts/SimulationContext';
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -97,12 +98,15 @@ export default function Map() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const layersRef = useRef<Set<string>>(new Set());
   const [isStreetView, setIsStreetView] = useState(true);
-  const { layers, getFilteredData, dataPointCount } = useData();
+  const { layers, getFilteredData, dataPointCount, setSelectedPoint } = useData();
+  const { selectedPoint, isSimulating } = useData();
+  const { startSimulation, stopSimulation, cleanupSimulation } = useSimulation();
 
   const updateLayer = useCallback((layer: { id: string, color: string, visible: boolean }) => {
     if (!mapRef.current) return;
 
     const layerId = `${layer.id}-layer`;
+    const pointLayerId = `${layerId}-point`;  // Define pointLayerId here
     const map = mapRef.current;
     const data = getFilteredData(layer.id);
 
@@ -120,6 +124,14 @@ export default function Map() {
     if (map.getSource(`${layer.id}-point`)) {
       map.removeSource(`${layer.id}-point`);
     }
+
+    // Add click handler for map background first (so it's at the bottom of the stack)
+    // map.on('click', (e) => {
+    //   // Only clear if we didn't click on a feature
+    //   if (!e.defaultPrevented) {
+    //     setSelectedPoint(null);
+    //   }
+    // });
 
     // Add layer if it's meant to be visible
     if (layer.visible) {
@@ -145,7 +157,6 @@ export default function Map() {
         });
 
         // Add point layer for all zoom levels (but fade out at high zoom)
-        const pointLayerId = `${layerId}-point`;
         const pointLayer: mapboxgl.LayerSpecification = {
           id: pointLayerId,
           type: 'circle',
@@ -200,14 +211,31 @@ export default function Map() {
         map.addLayer(polygonLayer);
         layersRef.current.add(layerId);
 
-        // Add click handlers for both layers
+        // Add click handlers for both polygon and point layers
         [pointLayerId, layerId].forEach(id => {
           map.on('click', id, (e) => {
+            e.preventDefault();
             const feature = e.features?.[0];
             if (!feature) return;
 
-            const coordinates = e.lngLat;
+            // Get the actual feature coordinates
+            let lng: number, lat: number;
+            if (feature.geometry.type === 'Point') {
+              const pointCoords = (feature.geometry as GeoJSON.Point).coordinates;
+              [lng, lat] = pointCoords;
+            } else {
+              const centroid = calculatePolygonCentroid((feature.geometry as GeoJSON.Polygon).coordinates);
+              [lng, lat] = centroid;
+            }
+
             const properties = feature.properties;
+            setSelectedPoint({
+              lat,
+              lng,
+              properties,
+              layerId: layer.id
+            });
+
             const popupContent = layer.id === 'microplastics'
               ? formatMicroplasticsPopup(properties)
               : layer.id === 'nasa'
@@ -215,15 +243,15 @@ export default function Map() {
                 : formatNtuaPopup(properties);
 
             new mapboxgl.Popup()
-              .setLngLat(coordinates)
+              .setLngLat([lng, lat])
               .setHTML(`
                 <div class="flex flex-col text-deep-water p-2 max-w-sm">
                   <div class="mb-3">
                     <div class="mb-1">
-                      <span class="font-semibold">Latitude:</span> ${coordinates.lat.toFixed(4)}°
+                      <span class="font-semibold">Latitude:</span> ${lat.toFixed(4)}°
                     </div>
                     <div class="mb-1">
-                      <span class="font-semibold">Longitude:</span> ${coordinates.lng.toFixed(4)}°
+                      <span class="font-semibold">Longitude:</span> ${lng.toFixed(4)}°
                     </div>
                   </div>
                   <div class="flex flex-col space-y-0.5">
@@ -282,13 +310,23 @@ export default function Map() {
         map.addLayer(layerConfig);
         layersRef.current.add(layerId);
 
-        // Add event listeners for regular layers
+        // Add click handler for regular point layer
         map.on('click', layerId, (e) => {
+          e.preventDefault();
           const feature = e.features?.[0];
           if (!feature) return;
 
-          const coordinates = e.lngLat;
+          const coordinates = (feature.geometry as GeoJSON.Point).coordinates;
+          const [lng, lat] = coordinates;
           const properties = feature.properties;
+
+          setSelectedPoint({
+            lat,
+            lng,
+            properties,
+            layerId: layer.id
+          });
+
           const popupContent = layer.id === 'microplastics'
             ? formatMicroplasticsPopup(properties)
             : layer.id === 'nasa'
@@ -296,15 +334,15 @@ export default function Map() {
               : formatNtuaPopup(properties);
 
           new mapboxgl.Popup()
-            .setLngLat(coordinates)
+            .setLngLat([lng, lat])
             .setHTML(`
               <div class="flex flex-col text-deep-water p-2 max-w-sm">
                 <div class="mb-3">
                   <div class="mb-1">
-                    <span class="font-semibold">Latitude:</span> ${coordinates.lat.toFixed(4)}°
+                    <span class="font-semibold">Latitude:</span> ${lat.toFixed(4)}°
                   </div>
                   <div class="mb-1">
-                    <span class="font-semibold">Longitude:</span> ${coordinates.lng.toFixed(4)}°
+                    <span class="font-semibold">Longitude:</span> ${lng.toFixed(4)}°
                   </div>
                 </div>
                 <div class="flex flex-col space-y-0.5">
@@ -334,7 +372,7 @@ export default function Map() {
         });
       }
     }
-  }, [getFilteredData]);
+  }, [getFilteredData, setSelectedPoint]);
 
   const loadMap = useCallback(() => {
     // Only initialize map if it hasn't been initialized yet
@@ -380,6 +418,32 @@ export default function Map() {
       });
     }
   }, [isStreetView, layers, updateLayer]);
+
+  // Update simulation effect
+  useEffect(() => {
+    if (!mapRef.current || !selectedPoint) return;
+
+    cleanupSimulation();
+
+    if (isSimulating) {
+      startSimulation(mapRef.current, [selectedPoint.lng, selectedPoint.lat]);
+    }
+
+    return () => {
+      cleanupSimulation();
+    };
+  }, [selectedPoint, isSimulating, startSimulation, cleanupSimulation]);
+
+  // Handle simulation state changes
+  useEffect(() => {
+    if (!selectedPoint) return;
+
+    if (isSimulating) {
+      mapRef.current && startSimulation(mapRef.current, [selectedPoint.lng, selectedPoint.lat]);
+    } else {
+      stopSimulation();
+    }
+  }, [isSimulating, selectedPoint, startSimulation, stopSimulation]);
 
   return (
     <div className="relative w-full h-full">

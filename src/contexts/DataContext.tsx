@@ -17,6 +17,13 @@ interface DataLayer {
   data: GeoJSON.FeatureCollection;
 }
 
+interface SimulationPoint {
+  lat: number;
+  lng: number;
+  properties?: GeoJSON.GeoJsonProperties;
+  layerId: string;
+}
+
 interface DataContextType {
   layers: DataLayer[];
   toggleLayer: (layerId: string) => void;
@@ -24,6 +31,10 @@ interface DataContextType {
   setYearFilter: (filter: YearFilter) => void;
   getFilteredData: (layerId: string) => GeoJSON.FeatureCollection;
   dataPointCount: Record<string, number>;
+  selectedPoint: SimulationPoint | null;
+  setSelectedPoint: (point: SimulationPoint | null) => void;
+  isSimulating: boolean;
+  toggleSimulation: () => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -65,6 +76,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     ntua: 0
   });
 
+  const [selectedPoint, setSelectedPoint] = useState<SimulationPoint | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+
   const toggleLayer = useCallback((layerId: string) => {
     setLayers(currentLayers =>
       currentLayers.map(layer =>
@@ -73,6 +87,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
           : layer
       )
     );
+  }, []);
+
+  const toggleSimulation = useCallback(() => {
+    setIsSimulating(prev => !prev);
   }, []);
 
   const getFilteredData = useCallback((layerId: string): GeoJSON.FeatureCollection => {
@@ -116,7 +134,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       yearFilter,
       setYearFilter,
       getFilteredData,
-      dataPointCount
+      dataPointCount,
+      selectedPoint,
+      setSelectedPoint,
+      isSimulating,
+      toggleSimulation
     }}>
       {children}
     </DataContext.Provider>
