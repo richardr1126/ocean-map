@@ -2,7 +2,15 @@ import { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
 
 export default function Sidebar() {
-  const { layers, toggleLayer, yearFilter, setYearFilter } = useData();
+  const { 
+    layers, 
+    toggleLayer, 
+    yearFilter, 
+    setYearFilter, 
+    selectedPoint,
+    isSimulating,
+    toggleSimulation 
+  } = useData();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Update filter type and apply changes immediately
@@ -131,6 +139,26 @@ export default function Sidebar() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {selectedPoint && (
+              <div className="flex flex-col gap-2 border-t pt-2">
+                <h3 className="font-semibold">Selected Point</h3>
+                <div className="text-sm">
+                  <p>Lat: {selectedPoint.lat.toFixed(4)}°</p>
+                  <p>Lng: {selectedPoint.lng.toFixed(4)}°</p>
+                </div>
+                <button
+                  onClick={toggleSimulation}
+                  className={`px-3 py-1.5 rounded-md transition-colors ${
+                    isSimulating 
+                      ? 'bg-red-500 hover:bg-red-600 dark:bg-red-400 dark:hover:bg-red-500'
+                      : 'bg-white/30 dark:bg-black/20 hover:bg-white/20 dark:hover:bg-black/10'
+                  }`}
+                >
+                  {isSimulating ? 'Stop Simulation' : 'Start Simulation'}
+                </button>
               </div>
             )}
           </div>
