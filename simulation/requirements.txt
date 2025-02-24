@@ -1,0 +1,13 @@
+numpy>=1.21.0
+matplotlib>=3.4.0
+cartopy
+shapely
+netCDF4
+cartopy>=0.21.0
+netCDF4>=1.6.0
+shapely
+requests>=2.28.0
+scipy>=1.7.0
+xarray
+cdsapi
+cfgrib

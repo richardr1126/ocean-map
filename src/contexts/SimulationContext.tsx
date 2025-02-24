@@ -167,7 +167,7 @@ export class ParticleSimulation {
     const dx = (Math.random() - 0.5) * randomFactor;
     const dy = (Math.random() - 0.5) * randomFactor;
     
-    let [lon, lat] = this.currentPos;
+    const [lon, lat] = this.currentPos;
     
     // Calculate new position using one minute time step
     const currentFactor = 0.00001;

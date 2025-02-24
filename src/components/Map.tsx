@@ -100,7 +100,7 @@ export default function Map() {
   const [isStreetView, setIsStreetView] = useState(true);
   const { layers, getFilteredData, dataPointCount, setSelectedPoint } = useData();
   const { selectedPoint, isSimulating } = useData();
-  const { startSimulation, stopSimulation, cleanupSimulation } = useSimulation();
+  const { startSimulation, cleanupSimulation } = useSimulation();
 
   const updateLayer = useCallback((layer: { id: string, color: string, visible: boolean }) => {
     if (!mapRef.current) return;
